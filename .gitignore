@@ -10,5 +10,9 @@ wheels/
 .venv
 
 #Credentials
-credentials.json
 .env
+
+# Notas internas de desarrollo (no forman parte de la app publicada)
+AuraCouach_vault/
+scripts/
+.claude
