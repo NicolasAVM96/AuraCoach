@@ -10,6 +10,20 @@ def log_to_text(fecha: str, tipo_entreno: str, ejercicio: str, series: int, reps
     return f"{fecha} - {tipo_entreno} - {ejercicio}: {series} series x {reps} reps @ {carga}"
 
 
+def _fuzzy_ilike_clause(query: str) -> tuple[str, list[str]]:
+    """Arma un WHERE que matchea si CUALQUIER palabra significativa de `query`
+    aparece en `ejercicio`, en vez de exigir la frase completa como substring.
+
+    Evita que una búsqueda como "flexiones de brazos" deje afuera filas
+    guardadas como "Flexiones piso" o "Flexiones" (mismo ejercicio, nombre
+    más corto) solo porque no contienen la frase exacta.
+    """
+    palabras = [p for p in query.split() if len(p) > 2] or [query]
+    clausula = " or ".join(["ejercicio ilike %s"] * len(palabras))
+    valores = [f"%{p}%" for p in palabras]
+    return clausula, valores
+
+
 async def insert_log(chat_id: str, ejercicio: dict) -> bool:
     try:
         fecha = datetime.strptime(ejercicio["fecha"], "%d/%m/%Y").date()
@@ -49,35 +63,37 @@ async def insert_log(chat_id: str, ejercicio: dict) -> bool:
 
 
 async def get_exercise_history(chat_id: str, ejercicio: str, limit: int = 20) -> list[dict]:
+    clausula, valores = _fuzzy_ilike_clause(ejercicio)
     pool = await get_pool()
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                """
+                f"""
                 select fecha, tipo_entreno, ejercicio, series, reps, carga
                 from workout_logs
-                where chat_id = %s and ejercicio ilike %s
+                where chat_id = %s and ({clausula})
                 order by fecha desc
                 limit %s
                 """,
-                (chat_id, f"%{ejercicio}%", limit),
+                (chat_id, *valores, limit),
             )
             return await cur.fetchall()
 
 
 async def get_progress_summary(chat_id: str, ejercicio: str, limit: int = 20) -> list[dict]:
+    clausula, valores = _fuzzy_ilike_clause(ejercicio)
     pool = await get_pool()
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                """
+                f"""
                 select fecha, series, reps, carga
                 from workout_logs
-                where chat_id = %s and ejercicio ilike %s
+                where chat_id = %s and ({clausula})
                 order by fecha asc
                 limit %s
                 """,
-                (chat_id, f"%{ejercicio}%", limit),
+                (chat_id, *valores, limit),
             )
             return await cur.fetchall()
 
