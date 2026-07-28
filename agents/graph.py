@@ -8,12 +8,12 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel
 
+from agents.memory import recent_messages
 from agents.prompts import GENERAL_PROMPT, SUPERVISOR_PROMPT
 from agents.specialists import coach_agent, dolor_agent, nutricion_agent, rutina_agent
 from agents.state import AgentState
 
 MODEL = "gpt-4o-mini"
-MAX_MESSAGES = 24
 
 Route = Literal["rutina", "nutricion", "dolor", "coach", "general"]
 
@@ -24,7 +24,7 @@ class RouteDecision(BaseModel):
 
 async def supervisor_node(state: AgentState) -> dict:
     llm = ChatOpenAI(model=MODEL)
-    recientes = state["messages"][-MAX_MESSAGES:]
+    recientes = recent_messages(state["messages"])
     decision = await llm.with_structured_output(RouteDecision).ainvoke(
         [SystemMessage(content=SUPERVISOR_PROMPT), *recientes]
     )
@@ -33,7 +33,7 @@ async def supervisor_node(state: AgentState) -> dict:
 
 async def general_node(state: AgentState) -> dict:
     llm = ChatOpenAI(model=MODEL)
-    recientes = state["messages"][-MAX_MESSAGES:]
+    recientes = recent_messages(state["messages"])
     respuesta = await llm.ainvoke([SystemMessage(content=GENERAL_PROMPT), *recientes])
     return {"messages": [AIMessage(content=respuesta.content)]}
 

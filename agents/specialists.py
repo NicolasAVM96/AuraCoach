@@ -2,17 +2,17 @@ from langchain.agents import create_agent
 from langchain.agents.middleware import HumanInTheLoopMiddleware, wrap_model_call
 from langchain_openai import ChatOpenAI
 
+from agents.memory import recent_messages
 from agents.prompts import COACH_PROMPT, DOLOR_PROMPT, NUTRICION_PROMPT, RUTINA_PROMPT
 from agents.state import AgentState
 from agents.tools import COACH_TOOLS, DOLOR_TOOLS, NUTRICION_TOOLS, RUTINA_TOOLS
 
 MODEL = "gpt-4o-mini"
-MAX_MESSAGES = 24
 
 
 @wrap_model_call
 async def trim_history(request, handler):
-    return await handler(request.override(messages=request.messages[-MAX_MESSAGES:]))
+    return await handler(request.override(messages=recent_messages(request.messages)))
 
 
 def _llm() -> ChatOpenAI:
