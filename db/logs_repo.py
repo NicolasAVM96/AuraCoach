@@ -98,19 +98,30 @@ async def get_progress_summary(chat_id: str, ejercicio: str, limit: int = 20) ->
             return await cur.fetchall()
 
 
-async def get_recent_sessions(chat_id: str, n: int = 5) -> list[dict]:
+async def get_recent_sessions(chat_id: str, n: int = 5, tipo_entreno: str | None = None) -> list[dict]:
     pool = await get_pool()
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                """
-                select fecha, tipo_entreno, ejercicio, series, reps, carga
-                from workout_logs
-                where chat_id = %s
-                order by fecha desc, id asc
-                """,
-                (chat_id,),
-            )
+            if tipo_entreno:
+                await cur.execute(
+                    """
+                    select fecha, tipo_entreno, ejercicio, series, reps, carga
+                    from workout_logs
+                    where chat_id = %s and tipo_entreno ilike %s
+                    order by fecha desc, id asc
+                    """,
+                    (chat_id, tipo_entreno),
+                )
+            else:
+                await cur.execute(
+                    """
+                    select fecha, tipo_entreno, ejercicio, series, reps, carga
+                    from workout_logs
+                    where chat_id = %s
+                    order by fecha desc, id asc
+                    """,
+                    (chat_id,),
+                )
             rows = await cur.fetchall()
 
     sessions: dict[tuple, dict] = {}

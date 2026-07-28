@@ -26,17 +26,36 @@ async def get_progress_summary(ejercicio: str, chat_id: ChatId) -> str:
     return "\n".join(f"{r['fecha']}: {r['series']}x{r['reps']} @ {r['carga']}" for r in rows)
 
 
+def _format_sessions(sessions: list[dict]) -> str:
+    partes = []
+    for s in sessions:
+        ejercicios = ", ".join(f"{e['ejercicio']} {e['series']}x{e['reps']} @ {e['carga']}" for e in s["ejercicios"])
+        partes.append(f"{s['fecha']} ({s['tipo_entreno']}): {ejercicios}")
+    return "\n".join(partes)
+
+
 @tool
 async def get_recent_sessions(n: int, chat_id: ChatId) -> str:
     """Últimas N sesiones de entrenamiento registradas, con sus ejercicios."""
     sessions = await logs_repo.get_recent_sessions(chat_id, n)
     if not sessions:
         return "No hay sesiones registradas."
-    partes = []
-    for s in sessions:
-        ejercicios = ", ".join(f"{e['ejercicio']} {e['series']}x{e['reps']} @ {e['carga']}" for e in s["ejercicios"])
-        partes.append(f"{s['fecha']} ({s['tipo_entreno']}): {ejercicios}")
-    return "\n".join(partes)
+    return _format_sessions(sessions)
+
+
+@tool
+async def get_sessions_by_category(categoria: str, n: int, chat_id: ChatId) -> str:
+    """Últimas N sesiones de una categoría de entrenamiento (no de un ejercicio puntual).
+
+    Categorías válidas: "Gym sup" (tren superior), "Gym inf" (piernas), "Gym sup/inf" (full body),
+    "Calistenia" (peso corporal), "Rutina complementaria". Usa esta tool cuando el usuario pregunte
+    por un grupo muscular o tipo de rutina (ej. "piernas", "gym inf", "tren superior") en vez de un
+    ejercicio con nombre propio.
+    """
+    sessions = await logs_repo.get_recent_sessions(chat_id, n, tipo_entreno=categoria)
+    if not sessions:
+        return f"No hay sesiones registradas para la categoría '{categoria}'."
+    return _format_sessions(sessions)
 
 
 @tool
@@ -133,7 +152,21 @@ async def log_health_event(
     return "Evento de salud guardado correctamente."
 
 
-RUTINA_TOOLS = [get_exercise_history, get_progress_summary, get_recent_sessions, semantic_search_logs, get_current_goals]
+RUTINA_TOOLS = [
+    get_exercise_history,
+    get_progress_summary,
+    get_recent_sessions,
+    get_sessions_by_category,
+    semantic_search_logs,
+    get_current_goals,
+]
 NUTRICION_TOOLS = [get_recent_sessions, get_current_nutrition_targets, set_nutrition_targets]
 DOLOR_TOOLS = [get_exercise_history, get_recent_sessions, get_active_health_events, log_health_event]
-COACH_TOOLS = [get_recent_sessions, get_progress_summary, get_exercise_history, get_current_goals, set_user_goals]
+COACH_TOOLS = [
+    get_recent_sessions,
+    get_sessions_by_category,
+    get_progress_summary,
+    get_exercise_history,
+    get_current_goals,
+    set_user_goals,
+]
