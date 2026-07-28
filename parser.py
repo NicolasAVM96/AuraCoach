@@ -2,17 +2,20 @@ import re
 from datetime import datetime
 
 def parse_exercise(linea_texto):
-    # Busca texto, luego numeros separador por 'x', luego el resto
-    patron_regex = r"^(.+?)\s+(\d+)[xX](\d+)\s*(.*)$"
-    
+    # Busca texto, luego numeros separados por 'x', luego el resto.
+    # El [xX]? antes del resto es porque el formato habitual es
+    # "RepsxSeriesxCarga" (tres campos separados por 'x', sin espacios) -
+    # sin este optional, esa tercera 'x' quedaba pegada al inicio de la carga.
+    patron_regex = r"^(.+?)\s+(\d+)[xX](\d+)[xX]?\s*(.*)$"
+
     # Intentamos hacer match con la linea que recibimos
     match = re.match(patron_regex, linea_texto)
-    
-    if match:      
-        ejercicio = match.group(1).strip() 
+
+    if match:
+        ejercicio = match.group(1).strip()
         reps = int(match.group(2))
         series = int(match.group(3))
-        carga = match.group(4)
+        carga = match.group(4).strip()
         
         # Devolvemos un diccionario limpio
         return {
